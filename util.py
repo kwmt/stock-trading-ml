@@ -12,6 +12,7 @@ def csv_to_dataset(csv_path):
 
     data = data.values
 
+    # 正規化
     data_normaliser = preprocessing.MinMaxScaler()
     data_normalised = data_normaliser.fit_transform(data)
 

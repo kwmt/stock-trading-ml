@@ -11,14 +11,17 @@ from util import csv_to_dataset, history_points
 
 # dataset
 
-ohlcv_histories, _, next_day_open_values, unscaled_y, y_normaliser = csv_to_dataset('MSFT_daily.csv')
+ohlcv_histories, _, next_day_open_values, unscaled_y, y_normaliser = csv_to_dataset('GOOGL_daily.csv')
 
+# データセットを訓練データと、テストデータに分割する
 test_split = 0.9
 n = int(ohlcv_histories.shape[0] * test_split)
 
+# 訓練データ
 ohlcv_train = ohlcv_histories[:n]
 y_train = next_day_open_values[:n]
 
+# テストデータ
 ohlcv_test = ohlcv_histories[n:]
 y_test = next_day_open_values[n:]
 
@@ -46,15 +49,21 @@ model.fit(x=ohlcv_train, y=y_train, batch_size=32, epochs=50, shuffle=True, vali
 
 # evaluation
 
+# テストデータから予測したデータ
 y_test_predicted = model.predict(ohlcv_test)
-y_test_predicted = y_normaliser.inverse_transform(y_test_predicted)
+y_test_predicted = y_normaliser.inverse_transform(y_test_predicted) # 実データに変換
+# 訓練データから予測
 y_predicted = model.predict(ohlcv_histories)
-y_predicted = y_normaliser.inverse_transform(y_predicted)
+y_predicted = y_normaliser.inverse_transform(y_predicted) # 実データに変換
 
 assert unscaled_y_test.shape == y_test_predicted.shape
+# 平均二乗誤差
+# unscaled_y_testは実際の値、y_test_predictedは予測したデータなので、どれだけ違いがあるか。
+# 値が小さければ小さいほど、正確だとということ
 real_mse = np.mean(np.square(unscaled_y_test - y_test_predicted))
 scaled_mse = real_mse / (np.max(unscaled_y_test) - np.min(unscaled_y_test)) * 100
-print(scaled_mse)
+print('real_mse %f' % real_mse)
+print('scaled_mse %f' % scaled_mse)
 
 import matplotlib.pyplot as plt
 
