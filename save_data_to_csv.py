@@ -2,7 +2,7 @@ from alpha_vantage.timeseries import TimeSeries
 from pprint import pprint
 import json
 import argparse
-
+import pandas as pd
 
 def save_dataset(symbol, time_window):
     credentials = json.load(open('creds.json', 'r'))
@@ -19,8 +19,15 @@ def save_dataset(symbol, time_window):
 
     pprint(data.head(10))
 
-    data.to_csv(f'./{symbol}_{time_window}.csv')
+    csv_path = f'./{symbol}_{time_window}.csv'
+    data.to_csv(csv_path)
+    csv_to_dataset(csv_path)
 
+def csv_to_dataset(csv_path):
+    data = pd.read_csv(csv_path)
+    data = data.drop('date', axis=1)
+    # data = data.drop(0, axis=0)
+    print(data)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

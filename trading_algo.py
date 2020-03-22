@@ -24,7 +24,7 @@ y_test_predicted = y_normaliser.inverse_transform(y_test_predicted)
 
 buys = []
 sells = []
-thresh = 0.1
+thresh = 1.0
 
 start = 0
 end = -1
@@ -46,7 +46,7 @@ print(f"sells: {len(sells)}")
 
 
 def compute_earnings(buys_, sells_):
-    purchase_amt = 10
+    purchase_amt = 100
     stock = 0
     balance = 0
     while len(buys_) > 0 and len(sells_) > 0:

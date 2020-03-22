@@ -8,25 +8,35 @@ history_points = 50
 def csv_to_dataset(csv_path):
     data = pd.read_csv(csv_path)
     data = data.drop('date', axis=1)
-    data = data.drop(0, axis=0)
+    # 最新のデータを消してる？
+    # data = data.drop(0, axis=0)
 
     data = data.values
 
     # 正規化
+    # ネットワークの収束の速さを向上させるために、データを正規化する。（0-1間）
     data_normaliser = preprocessing.MinMaxScaler()
     data_normalised = data_normaliser.fit_transform(data)
 
-    # using the last {history_points} open close high low volume data points, predict the next open value
-    ohlcv_histories_normalised = np.array([data_normalised[i:i + history_points].copy() for i in range(len(data_normalised) - history_points)])
-    next_day_open_values_normalised = np.array([data_normalised[:, 0][i + history_points].copy() for i in range(len(data_normalised) - history_points)])
+    # 最新の過去{history_points}日間のストック履歴に基づいて学習し、次の日の予測を行う
+    # ohlcv_histories_normalisedの各値は、50個のopen, high, low, close, volume値を含むnumpy配列
+    max_range = len(data_normalised) - history_points
+    ohlcv_histories_normalised = np.array([data_normalised[i:i + history_points].copy() 
+                                    for i in range(max_range)])
+    # next_day_open_values_normalisedの各行は、ohlcv_histories_normalisedの各行の次の日にオープンの正規化された値
+    next_day_open_values_normalised = np.array([data_normalised[:, 0][i + history_points].copy() 
+                                        for i in range(max_range)])
     next_day_open_values_normalised = np.expand_dims(next_day_open_values_normalised, -1)
 
+    # next_day_open_valuesの各行は、next_day_open_values_normalisedの各行の次の日のオープン価格
     next_day_open_values = np.array([data[:, 0][i + history_points].copy() for i in range(len(data) - history_points)])
     next_day_open_values = np.expand_dims(next_day_open_values, -1)
 
+    # next_day_open_values     
     y_normaliser = preprocessing.MinMaxScaler()
     y_normaliser.fit(next_day_open_values)
 
+    # 単純移動平均
     def calc_ema(values, time_period):
         # https://www.investopedia.com/ask/answers/122314/what-exponential-moving-average-ema-formula-and-how-ema-calculated.asp
         sma = np.mean(values[:, 3])
@@ -50,30 +60,31 @@ def csv_to_dataset(csv_path):
     tech_ind_scaler = preprocessing.MinMaxScaler()
     technical_indicators_normalised = tech_ind_scaler.fit_transform(technical_indicators)
 
+    # 形状チェック 
     assert ohlcv_histories_normalised.shape[0] == next_day_open_values_normalised.shape[0] == technical_indicators_normalised.shape[0]
     return ohlcv_histories_normalised, technical_indicators_normalised, next_day_open_values_normalised, next_day_open_values, y_normaliser
 
 
-def multiple_csv_to_dataset(test_set_name):
-    import os
-    ohlcv_histories = 0
-    technical_indicators = 0
-    next_day_open_values = 0
-    for csv_file_path in list(filter(lambda x: x.endswith('daily.csv'), os.listdir('./'))):
-        if not csv_file_path == test_set_name:
-            print(csv_file_path)
-            if type(ohlcv_histories) == int:
-                ohlcv_histories, technical_indicators, next_day_open_values, _, _ = csv_to_dataset(csv_file_path)
-            else:
-                a, b, c, _, _ = csv_to_dataset(csv_file_path)
-                ohlcv_histories = np.concatenate((ohlcv_histories, a), 0)
-                technical_indicators = np.concatenate((technical_indicators, b), 0)
-                next_day_open_values = np.concatenate((next_day_open_values, c), 0)
+# def multiple_csv_to_dataset(test_set_name):
+#     import os
+#     ohlcv_histories = 0
+#     technical_indicators = 0
+#     next_day_open_values = 0
+#     for csv_file_path in list(filter(lambda x: x.endswith('daily.csv'), os.listdir('./'))):
+#         if not csv_file_path == test_set_name:
+#             print(csv_file_path)
+#             if type(ohlcv_histories) == int:
+#                 ohlcv_histories, technical_indicators, next_day_open_values, _, _ = csv_to_dataset(csv_file_path)
+#             else:
+#                 a, b, c, _, _ = csv_to_dataset(csv_file_path)
+#                 ohlcv_histories = np.concatenate((ohlcv_histories, a), 0)
+#                 technical_indicators = np.concatenate((technical_indicators, b), 0)
+#                 next_day_open_values = np.concatenate((next_day_open_values, c), 0)
 
-    ohlcv_train = ohlcv_histories
-    tech_ind_train = technical_indicators
-    y_train = next_day_open_values
+#     ohlcv_train = ohlcv_histories
+#     tech_ind_train = technical_indicators
+#     y_train = next_day_open_values
 
-    ohlcv_test, tech_ind_test, y_test, unscaled_y_test, y_normaliser = csv_to_dataset(test_set_name)
+#     ohlcv_test, tech_ind_test, y_test, unscaled_y_test, y_normaliser = csv_to_dataset(test_set_name)
 
-    return ohlcv_train, tech_ind_train, y_train, ohlcv_test, tech_ind_test, y_test, unscaled_y_test, y_normaliser
+#     return ohlcv_train, tech_ind_train, y_train, ohlcv_test, tech_ind_test, y_test, unscaled_y_test, y_normaliser

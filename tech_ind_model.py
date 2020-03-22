@@ -12,6 +12,7 @@ from util import csv_to_dataset, history_points
 
 # dataset
 
+# technical_indicatorsはテクニカル指標
 ohlcv_histories, technical_indicators, next_day_open_values, unscaled_y, y_normaliser = csv_to_dataset('MSFT_daily.csv')
 
 test_split = 0.9
@@ -35,6 +36,7 @@ print(ohlcv_test.shape)
 
 # define two sets of inputs
 lstm_input = Input(shape=(history_points, 5), name='lstm_input')
+# テクニカル指標は時系列的なデータではないので、LSTMに通すべきではないため、２つ目のInputを用意し、連結層で連結する必要がある。
 dense_input = Input(shape=(technical_indicators.shape[1],), name='tech_input')
 
 # the first branch operates on the first input
@@ -48,9 +50,11 @@ y = Activation("relu", name='tech_relu_0')(y)
 y = Dropout(0.2, name='tech_dropout_0')(y)
 technical_indicators_branch = Model(inputs=dense_input, outputs=y)
 
+# 連結層
 # combine the output of the two branches
 combined = concatenate([lstm_branch.output, technical_indicators_branch.output], name='concatenate')
 
+# 出力層
 z = Dense(64, activation="sigmoid", name='dense_pooling')(combined)
 z = Dense(1, activation="linear", name='dense_out')(z)
 
@@ -58,6 +62,8 @@ z = Dense(1, activation="linear", name='dense_out')(z)
 # then output a single value
 model = Model(inputs=[lstm_branch.input, technical_indicators_branch.input], outputs=z)
 adam = optimizers.Adam(lr=0.0005)
+
+model.summary()
 model.compile(optimizer=adam, loss='mse')
 model.fit(x=[ohlcv_train, tech_ind_train], y=y_train, batch_size=32, epochs=50, shuffle=True, validation_split=0.1)
 
@@ -71,6 +77,7 @@ y_predicted = y_normaliser.inverse_transform(y_predicted)
 assert unscaled_y_test.shape == y_test_predicted.shape
 real_mse = np.mean(np.square(unscaled_y_test - y_test_predicted))
 scaled_mse = real_mse / (np.max(unscaled_y_test) - np.min(unscaled_y_test)) * 100
+print(real_mse)
 print(scaled_mse)
 
 import matplotlib.pyplot as plt
@@ -80,11 +87,11 @@ plt.gcf().set_size_inches(22, 15, forward=True)
 start = 0
 end = -1
 
-real = plt.plot(unscaled_y_test[start:end], label='real')
-pred = plt.plot(y_test_predicted[start:end], label='predicted')
+# real = plt.plot(unscaled_y_test[start:end], label='real')
+# pred = plt.plot(y_test_predicted[start:end], label='predicted')
 
-# real = plt.plot(unscaled_y[start:end], label='real')
-# pred = plt.plot(y_predicted[start:end], label='predicted')
+real = plt.plot(unscaled_y[start:end], label='real')
+pred = plt.plot(y_predicted[start:end], label='predicted')
 
 plt.legend(['Real', 'Predicted'])
 

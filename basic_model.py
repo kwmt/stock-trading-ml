@@ -11,7 +11,7 @@ from util import csv_to_dataset, history_points
 
 # dataset
 
-ohlcv_histories, _, next_day_open_values, unscaled_y, y_normaliser = csv_to_dataset('GOOGL_daily.csv')
+ohlcv_histories, _, next_day_open_values, unscaled_y, y_normaliser = csv_to_dataset('MSFT_daily.csv')
 
 # データセットを訓練データと、テストデータに分割する
 test_split = 0.9
@@ -24,7 +24,6 @@ y_train = next_day_open_values[:n]
 # テストデータ
 ohlcv_test = ohlcv_histories[n:]
 y_test = next_day_open_values[n:]
-
 unscaled_y_test = unscaled_y[n:]
 
 print(ohlcv_train.shape)
@@ -34,17 +33,32 @@ print(ohlcv_test.shape)
 # model architecture
 
 lstm_input = Input(shape=(history_points, 5), name='lstm_input')
-x = LSTM(50, name='lstm_0')(lstm_input)
-x = Dropout(0.2, name='lstm_dropout_0')(x)
+# 50個のLSTMセルを配置
+x = LSTM(history_points, name='lstm_0')(lstm_input)
+# 過学習を防ぐためのDropout
+dropout_ratio = 0.2
+x = Dropout(dropout_ratio, name='lstm_dropout_0')(x)
+# 全結合層
 x = Dense(64, name='dense_0')(x)
 x = Activation('sigmoid', name='sigmoid_0')(x)
 x = Dense(1, name='dense_1')(x)
+# ネットワークの重要な特徴は線形出力活性化であり、モデルがその最後の重みを正確に調整することができます。
 output = Activation('linear', name='linear_output')(x)
 
 model = Model(inputs=lstm_input, outputs=output)
 adam = optimizers.Adam(lr=0.0005)
+
+model.summary()
+
 model.compile(optimizer=adam, loss='mse')
-model.fit(x=ohlcv_train, y=y_train, batch_size=32, epochs=50, shuffle=True, validation_split=0.1)
+
+model.fit(
+    x=ohlcv_train, 
+    y=y_train, 
+    batch_size=32, 
+    epochs=50, 
+    shuffle=True, 
+    validation_split=0.1)
 
 
 # evaluation
